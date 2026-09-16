@@ -3,6 +3,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
   Injectable,
   Module,
@@ -113,6 +114,20 @@ export class InspectionsService {
     return saved;
   }
 
+  /** Só é possível eliminar inspecções sem formulários associados. */
+  async remove(id: string, actorId: string, ip: string | null) {
+    const item = await this.findOne(id);
+    const count = await this.records.count({ where: { inspectionId: id } });
+    if (count > 0) {
+      throw new ConflictException(
+        `A inspecção "${item.name}" tem ${count} formulário(s) associado(s) e não pode ser eliminada`,
+      );
+    }
+    await this.repo.delete(id);
+    await this.audit.log({ userId: actorId, action: AuditAction.DELETE, entity: 'inspection', entityId: id, summary: `Inspecção eliminada: ${item.name}`, ip });
+    return { ok: true };
+  }
+
   private checkDates(start?: string | null, end?: string | null) {
     if (start && end && new Date(end) < new Date(start)) {
       throw new BadRequestException('A data de fim não pode ser anterior à data de início');
@@ -152,6 +167,13 @@ export class InspectionsController {
   @Roles(UserRole.ADMIN)
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateInspectionDto, @CurrentUser() u: User, @Req() req: Request) {
     return this.service.update(id, dto, u.id, clientIp(req));
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Elimina uma inspecção sem formulários associados' })
+  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() u: User, @Req() req: Request) {
+    return this.service.remove(id, u.id, clientIp(req));
   }
 }
 

@@ -77,8 +77,9 @@ export class RecordsService {
       .leftJoin('r.createdBy', 'u')
       .addSelect(['u.id', 'u.name'])
       .leftJoin('r.equipment', 'e')
-      .addSelect(['e.id', 'e.type', 'e.condition', 'e.hasProblems', 'e.isComplete'])
+      .addSelect(['e.id', 'e.type', 'e.position', 'e.otherDescription', 'e.brand', 'e.model', 'e.condition', 'e.hasProblems', 'e.isComplete'])
       .orderBy('r.updatedAt', 'DESC')
+      .addOrderBy('e.position', 'ASC')
       .skip((q.page - 1) * q.limit)
       .take(q.limit);
 

@@ -153,7 +153,9 @@ export class ReportsService {
                 r.id AS "recordId", r.number, r.status,
                 COUNT(e.id)::int AS equipment,
                 COUNT(e.id) FILTER (WHERE e.has_problems)::int AS "withProblems",
-                COALESCE(array_agg(DISTINCT e.type::text) FILTER (WHERE e.id IS NOT NULL), '{}') AS types
+                COALESCE(array_agg(DISTINCT e.type::text) FILTER (WHERE e.id IS NOT NULL), '{}') AS types,
+                COALESCE(array_agg(DISTINCT TRIM(e.other_description))
+                  FILTER (WHERE e.type = 'outro' AND NULLIF(TRIM(e.other_description), '') IS NOT NULL), '{}') AS others
            FROM inspection_records r
            JOIN collaborators c ON c.id = r.collaborator_id
            JOIN departments d ON d.id = c.department_id
@@ -304,7 +306,12 @@ export class ReportsService {
         'Estado do formulário': RECORD_STATUS_LABELS[r.status as keyof typeof RECORD_STATUS_LABELS],
         Equipamentos: r.equipment,
         'Com problemas': r.withProblems,
-        Tipos: (r.types as string[]).map((t) => EQUIPMENT_TYPE_LABELS[t as keyof typeof EQUIPMENT_TYPE_LABELS]).join(', '),
+        Tipos: [
+          ...(r.types as string[])
+            .filter((t) => t !== 'outro' || !(r.others as string[]).length)
+            .map((t) => EQUIPMENT_TYPE_LABELS[t as keyof typeof EQUIPMENT_TYPE_LABELS]),
+          ...(r.others as string[]),
+        ].join(', '),
       })),
     );
     addTableSheet(
