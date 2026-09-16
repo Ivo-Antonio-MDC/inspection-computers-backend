@@ -4,7 +4,8 @@ import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
 import { AuditService, diff } from '../audit/audit.service';
 import { AuthService } from '../auth/auth.service';
-import { AuditAction } from '../common/enums';
+import { AuditAction, UserRole } from '../common/enums';
+import { InspectionRecord } from '../records/entities/inspection-record.entity';
 import { CreateUserDto, ResetPasswordDto, UpdateUserDto } from './dto/user.dto';
 import { User } from './entities/user.entity';
 
@@ -85,6 +86,38 @@ export class UsersService {
       entity: 'user',
       entityId: id,
       summary: `Palavra-passe redefinida para ${user.name}`,
+      ip,
+    });
+    return { ok: true };
+  }
+
+  /**
+   * Elimina a conta. Utilizadores que já registaram formulários não podem ser
+   * eliminados (histórico da recolha) — nesse caso deve-se desactivar a conta.
+   */
+  async remove(id: string, actorId: string, ip: string | null) {
+    const user = await this.findOne(id);
+    if (id === actorId) throw new BadRequestException('Não pode eliminar a sua própria conta');
+
+    const records = await this.repo.manager.count(InspectionRecord, { where: { createdById: id } });
+    if (records > 0) {
+      throw new ConflictException(
+        `${user.name} registou ${records} formulário(s) e não pode ser eliminado — desactive a conta para lhe retirar o acesso`,
+      );
+    }
+    if (user.role === UserRole.ADMIN && user.isActive) {
+      const admins = await this.repo.count({ where: { role: UserRole.ADMIN, isActive: true } });
+      if (admins <= 1) throw new BadRequestException('Não é possível eliminar o último administrador activo');
+    }
+
+    await this.auth.revokeAll(id);
+    await this.repo.delete(id);
+    await this.audit.log({
+      userId: actorId,
+      action: AuditAction.DELETE,
+      entity: 'user',
+      entityId: id,
+      summary: `Utilizador eliminado: ${user.name} (${user.email})`,
       ip,
     });
     return { ok: true };

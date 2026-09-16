@@ -11,6 +11,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import configuration from './config/configuration';
 import { ENTITIES } from './database/entities';
 import { DepartmentsModule } from './departments/departments.module';
+import { EquipmentCategoriesModule } from './equipment-categories/equipment-categories.module';
 import { HealthModule } from './health/health.module';
 import { InspectionsModule } from './inspections/inspections.module';
 import { LocationsModule } from './locations/locations.module';
@@ -51,6 +52,7 @@ import { UsersModule } from './users/users.module';
     InspectionsModule,
     CollaboratorsModule,
     RecordsModule,
+    EquipmentCategoriesModule,
     ReportsModule,
     HealthModule,
   ],
