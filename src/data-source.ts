@@ -15,6 +15,7 @@ export default new DataSource({
   database: process.env.DB_NAME ?? 'inspeccao_computadores',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   entities: ENTITIES,
-  migrations: [join(__dirname, 'migrations/*.{ts,js}').replace(/\\/g, '/')],
+  // Em ts-node carrega .ts; compilado (dist/) carrega só .js — evita apanhar os .d.ts
+  migrations: [join(__dirname, `migrations/*.${__filename.endsWith('.ts') ? 'ts' : 'js'}`).replace(/\\/g, '/')],
   synchronize: false,
 });

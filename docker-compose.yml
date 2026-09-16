@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432" # opcional: acesso local em localhost:5433 (5432 fica para o Postgres local)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db # nome do serviço na rede do compose
+      DB_PORT: 5432
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "${PORT:-4000}:${PORT:-4000}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@mdconsultores.co.mz}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?Definir PGADMIN_PASSWORD no .env}
+      PGADMIN_CONFIG_UPGRADE_CHECK_ENABLED: "False"
+    volumes:
+      - pgadmindata:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    ports:
+      - "127.0.0.1:5051:80" # só acessível a partir deste PC
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  pgadmindata:
